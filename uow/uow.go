@@ -3,6 +3,13 @@ package uow
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrNoTransaction = errors.New("no transaction")
+	ErrRowback       = "erron on rollback: %s; original error: %s"
 )
 
 type Repository func(tx *sql.Tx) interface{}
@@ -35,4 +42,30 @@ func (u *UnitOfWork) Register(name string, repository Repository) {
 
 func (u *UnitOfWork) Unregister(name string) {
 	delete(u.Repositories, name)
+}
+
+func (u *UnitOfWork) Commit() error {
+	if u.Tx == nil {
+		return ErrNoTransaction
+	}
+	err := u.Tx.Commit()
+	if err != nil {
+		errRowback := u.Rollback()
+		if errRowback != nil {
+			return errors.New(fmt.Sprintf(ErrRowback, errRowback, err))
+		}
+	}
+	return nil
+}
+
+func (u *UnitOfWork) Rollback() error {
+	if u.Tx == nil {
+		return ErrNoTransaction
+	}
+	err := u.Tx.Rollback()
+	if err != nil {
+		return err
+	}
+	u.Tx = nil
+	return nil
 }
