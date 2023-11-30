@@ -27,3 +27,11 @@ func NewUnitOfWork(db *sql.DB) *UnitOfWork {
 		Repositories: make(map[string]Repository),
 	}
 }
+
+func (u *UnitOfWork) Register(name string, repository Repository) {
+	u.Repositories[name] = repository
+}
+
+func (u *UnitOfWork) Unregister(name string) {
+	delete(u.Repositories, name)
+}
