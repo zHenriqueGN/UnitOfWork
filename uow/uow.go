@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrNoTransaction = errors.New("no transaction")
-	ErrRowback       = "erron on rollback: %s; original error: %s"
+	ErrNoTransaction             = errors.New("no transaction")
+	ErrTransactionAlreadyStarted = errors.New("transaction already started")
+	ErrRowback                   = "erron on rollback: %s; original error: %s"
 )
 
 type Repository func(tx *sql.Tx) interface{}
@@ -18,7 +19,7 @@ type UowInterface interface {
 	Register(name string, repository Repository)
 	Unregister(name string)
 	GetRepository(ctx context.Context, name string) (interface{}, error)
-	Do(ctx context.Context, fn func(uow UowInterface) error) error
+	Do(ctx context.Context, fn func(uow *UnitOfWork) error) error
 	Commit() error
 	Rollback() error
 }
@@ -42,6 +43,39 @@ func (u *UnitOfWork) Register(name string, repository Repository) {
 
 func (u *UnitOfWork) Unregister(name string) {
 	delete(u.Repositories, name)
+}
+
+func (u *UnitOfWork) GetRepository(ctx context.Context, name string) (interface{}, error) {
+	if u.Tx == nil {
+		tx, err := u.DB.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		u.Tx = tx
+	}
+	repository := u.Repositories[name](u.Tx)
+	return repository, nil
+}
+
+func (u *UnitOfWork) Do(ctx context.Context, fn func(uow *UnitOfWork) error) error {
+	if u.Tx != nil {
+		return ErrTransactionAlreadyStarted
+	}
+
+	tx, err := u.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	u.Tx = tx
+	err = fn(u)
+	if err != nil {
+		errRowback := u.Rollback()
+		if errRowback != nil {
+			return errors.New(fmt.Sprintf(ErrRowback, errRowback, err))
+		}
+		return err
+	}
+	return nil
 }
 
 func (u *UnitOfWork) Commit() error {
