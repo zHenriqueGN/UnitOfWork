@@ -13,17 +13,6 @@ var (
 	ErrRowback                   = "erron on rollback: %s; original error: %s"
 )
 
-type Repository func(tx *sql.Tx) interface{}
-
-type UowInterface interface {
-	Register(name string, repository Repository)
-	Unregister(name string)
-	GetRepository(ctx context.Context, name string) (interface{}, error)
-	Do(ctx context.Context, fn func(uow *UnitOfWork) error) error
-	Commit() error
-	Rollback() error
-}
-
 type UnitOfWork struct {
 	DB           *sql.DB
 	Tx           *sql.Tx
