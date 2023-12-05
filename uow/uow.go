@@ -78,6 +78,7 @@ func (u *UnitOfWork) Commit() error {
 			return errors.New(fmt.Sprintf(ErrRowback, errRowback, err))
 		}
 	}
+	u.Tx = nil
 	return nil
 }
 
