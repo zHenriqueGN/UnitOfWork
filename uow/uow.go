@@ -64,7 +64,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(uow *UnitOfWork) error) err
 		}
 		return err
 	}
-	return nil
+	return u.Commit()
 }
 
 func (u *UnitOfWork) Commit() error {
