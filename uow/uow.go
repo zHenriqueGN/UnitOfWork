@@ -46,7 +46,7 @@ func (u *UnitOfWork) GetRepository(ctx context.Context, name string) (interface{
 	return repository, nil
 }
 
-func (u *UnitOfWork) Do(ctx context.Context, fn func(uow *UnitOfWork) error) error {
+func (u *UnitOfWork) Do(ctx context.Context, fn func() error) error {
 	if u.Tx != nil {
 		return ErrTransactionAlreadyStarted
 	}
@@ -56,7 +56,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func(uow *UnitOfWork) error) err
 		return err
 	}
 	u.Tx = tx
-	err = fn(u)
+	err = fn()
 	if err != nil {
 		errRowback := u.Rollback()
 		if errRowback != nil {
