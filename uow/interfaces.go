@@ -15,9 +15,9 @@ type DBTX interface {
 type Repository func(tx *sql.Tx) interface{}
 
 type UowInterface interface {
-	Register(name string, repository Repository)
-	Unregister(name string)
-	GetRepository(ctx context.Context, name string) (interface{}, error)
+	Register(eventName string, repository Repository)
+	Unregister(eventName string)
+	GetRepository(ctx context.Context, eventName string) (interface{}, error)
 	Do(ctx context.Context, fn func() error) error
 	Commit() error
 	Rollback() error
