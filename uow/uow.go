@@ -10,7 +10,7 @@ import (
 var (
 	ErrNoTransaction             = errors.New("no transaction")
 	ErrTransactionAlreadyStarted = errors.New("transaction already started")
-	ErrRowback                   = "erron on rollback: %s; original error: %s"
+	ErrRowback                   = errors.New("error on rollback")
 	ErrRepositoryNotRegistered   = errors.New("repository not registered")
 )
 
@@ -27,15 +27,15 @@ func NewUnitOfWork(db *sql.DB) *UnitOfWork {
 	}
 }
 
-func (u *UnitOfWork) Register(name string, repository Repository) {
-	u.Repositories[name] = repository
+func (u *UnitOfWork) Register(eventName string, repository Repository) {
+	u.Repositories[eventName] = repository
 }
 
-func (u *UnitOfWork) Unregister(name string) {
-	delete(u.Repositories, name)
+func (u *UnitOfWork) Unregister(eventName string) {
+	delete(u.Repositories, eventName)
 }
 
-func (u *UnitOfWork) GetRepository(ctx context.Context, name string) (interface{}, error) {
+func (u *UnitOfWork) GetRepository(ctx context.Context, eventName string) (interface{}, error) {
 	if u.Tx == nil {
 		tx, err := u.DB.BeginTx(ctx, nil)
 		if err != nil {
@@ -43,10 +43,10 @@ func (u *UnitOfWork) GetRepository(ctx context.Context, name string) (interface{
 		}
 		u.Tx = tx
 	}
-	if _, repositoryRegistered := u.Repositories[name]; !repositoryRegistered {
-		return nil, ErrRepositoryNotRegistered
+	if _, repositoryRegistered := u.Repositories[eventName]; !repositoryRegistered {
+		return nil, fmt.Errorf("%w: %s", ErrRepositoryNotRegistered, eventName)
 	}
-	repository := u.Repositories[name](u.Tx)
+	repository := u.Repositories[eventName](u.Tx)
 	return repository, nil
 }
 
@@ -64,7 +64,7 @@ func (u *UnitOfWork) Do(ctx context.Context, fn func() error) error {
 	if err != nil {
 		errRowback := u.Rollback()
 		if errRowback != nil {
-			return errors.New(fmt.Sprintf(ErrRowback, errRowback, err))
+			return fmt.Errorf("%w: %w, original error: %w", ErrRowback, errRowback, err)
 		}
 		return err
 	}
@@ -79,7 +79,7 @@ func (u *UnitOfWork) Commit() error {
 	if err != nil {
 		errRowback := u.Rollback()
 		if errRowback != nil {
-			return errors.New(fmt.Sprintf(ErrRowback, errRowback, err))
+			return fmt.Errorf("%w: %w, original error: %w", ErrRowback, errRowback, err)
 		}
 	}
 	u.Tx = nil
