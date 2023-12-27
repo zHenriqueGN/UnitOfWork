@@ -11,6 +11,7 @@ var (
 	ErrNoTransaction             = errors.New("no transaction")
 	ErrTransactionAlreadyStarted = errors.New("transaction already started")
 	ErrRowback                   = "erron on rollback: %s; original error: %s"
+	ErrRepositoryNotRegistered   = errors.New("repository not registered")
 )
 
 type UnitOfWork struct {
@@ -41,6 +42,9 @@ func (u *UnitOfWork) GetRepository(ctx context.Context, name string) (interface{
 			return nil, err
 		}
 		u.Tx = tx
+	}
+	if _, repositoryRegistered := u.Repositories[name]; !repositoryRegistered {
+		return nil, ErrRepositoryNotRegistered
 	}
 	repository := u.Repositories[name](u.Tx)
 	return repository, nil
