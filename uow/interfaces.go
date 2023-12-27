@@ -12,7 +12,7 @@ type DBTX interface {
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
-type Repository func(tx *sql.Tx) interface{}
+type Repository func(dbtx DBTX) interface{}
 
 type UowInterface interface {
 	Register(eventName string, repository Repository)
